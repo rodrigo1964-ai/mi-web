@@ -1,0 +1,62 @@
+@echo off
+REM ===========================================
+REM  Crear entorno conda rag_clean (RAG + Gemini)
+REM  Windows / Anaconda Prompt
+REM ===========================================
+
+echo.
+echo [1/8] Cerrando posibles entornos activos...
+call conda deactivate >nul 2>&1
+
+echo.
+echo [2/8] Eliminando entorno rag_clean (si existe)...
+call conda env remove -n rag_clean -y >nul 2>&1
+
+echo.
+echo [3/8] Creando entorno rag_clean con Python 3.10...
+call conda create -n rag_clean python=3.10 -c conda-forge -y
+if errorlevel 1 goto :error
+
+echo.
+echo [4/8] Activando entorno rag_clean...
+call conda activate rag_clean
+if errorlevel 1 goto :error
+
+echo.
+echo [5/8] Instalando dependencias con conda-forge (NumPy<2, FAISS, Jupyter)...
+call conda install -c conda-forge -y "numpy<2" faiss-cpu jupyterlab notebook ipykernel
+if errorlevel 1 goto :error
+
+echo.
+echo [6/8] Instalando PyTorch CPU (compatible con Windows)...
+call conda install -c pytorch -y pytorch cpuonly
+if errorlevel 1 goto :error
+
+echo.
+echo [7/8] Instalando librerías por pip (PDF, embeddings locales, Gemini API)...
+python -m pip install -U pip
+pip install -U pypdf sentence-transformers google-genai
+if errorlevel 1 goto :error
+
+echo.
+echo [8/8] Registrando kernel de Jupyter...
+python -m ipykernel install --user --name rag_clean --display-name "Python (rag_clean)"
+if errorlevel 1 goto :error
+
+echo.
+echo ===========================================
+echo LISTO ✅ Entorno rag_clean creado y listo
+echo Para iniciar: conda activate rag_clean
+echo Luego:        jupyter lab
+echo ===========================================
+echo.
+pause
+exit /b 0
+
+:error
+echo.
+echo ❌ ERROR: Algo falló durante la instalación.
+echo Revisá el mensaje anterior (probable: conda no inicializado en este CMD).
+echo.
+pause
+exit /b 1

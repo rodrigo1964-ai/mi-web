@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Demo local - Página + Chatbot</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <h1>Mi Página Web</h1>
+    <p>Demo local: Frontend + Chatbot con contexto en PDFs</p>
+  </header>
+
+  <main class="layout">
+    <section class="content">
+      <h2>Contenido del sitio</h2>
+      <p>
+        Esta página se sirve desde un servidor local. El chatbot consulta un backend local (API),
+        que usa RAG sobre PDFs propios.
+      </p>
+
+      <h3>Carpeta de PDFs</h3>
+      <p>Colocá tus documentos en:</p>
+      <code>C:\mi_html\mis_pdf\</code>
+
+      <h3>Estado</h3>
+      <ul>
+        <li>Frontend: ✅ listo</li>
+        <li>Backend Chatbot: debe correr en <code>http://localhost:8001/chat</code></li>
+      </ul>
+    </section>
+
+    <aside class="chatbox">
+      <div class="chat-header">
+        <div class="chat-title">Chatbot (RAG)</div>
+        <div class="chat-subtitle">Responde citando PDF + página</div>
+      </div>
+
+      <div id="chat" class="chat-messages"></div>
+
+      <form id="chatForm" class="chat-form">
+        <input id="question" type="text" placeholder="Escribí tu pregunta..." autocomplete="off" />
+        <button id="sendBtn" type="submit">Enviar</button>
+      </form>
+
+      <div class="chat-footnote">
+        Backend esperado: <code>http://localhost:8001/chat</code>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
