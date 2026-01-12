@@ -16,10 +16,15 @@ from google import genai
 
 
 # ========= CONFIG =========
-PDF_DIR = Path(r"C:\mi_html\mis_pdf")         # tus PDFs
-STORE_DIR = Path(r"C:\mi_html\api\rag_store") # índice persistente
+PDF_DIR = Path("./mis_pdf")         # tus PDFs
+STORE_DIR = Path("./rag_store") # índice persistente
 INDEX_PATH = STORE_DIR / "faiss.index"
 META_PATH  = STORE_DIR / "chunks_meta.json"
+
+
+STORE_DIR.mkdir(parents=True, exist_ok=True)
+
+
 
 WORDS_PER_CHUNK = 450
 OVERLAP = 60
@@ -102,7 +107,7 @@ app = FastAPI(title="RAG Chatbot API")
 # permitir llamadas desde tu página localhost:8000
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -135,10 +140,13 @@ def search(query: str, k: int = 6):
     D, I = index.search(qv, k)
 
     hits = []
-    for j in range(k):
-        idx = int(I[0][j])
-        item = meta[idx]
-        hits.append((float(D[0][j]), item))
+    for idx, dist in zip(I[0], D[0]):
+        if idx == -1:
+            continue
+        item = meta[int(idx)]
+        hits.append((float(dist), item))
+
+
     return hits
 
 
