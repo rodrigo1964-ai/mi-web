@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+
+.env
+.venv/
+venv/
+
+*.sqlite
+*.db
+
+rag_store/
+api/rag_store/
+
+*.log
+.ipynb_checkpoints/

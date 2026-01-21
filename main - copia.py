@@ -1,6 +1,5 @@
 import os
 import json
-import requests
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
@@ -11,6 +10,8 @@ from fastembed import TextEmbedding
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from google import genai
 
 
 # ================= CONFIG =================
@@ -29,19 +30,8 @@ TOP_K = int(os.environ.get("TOP_K", "6"))
 # ⚠️ Tiene que ser el mismo modelo usado en build_rag_store_fastembed.py
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
 
-# OpenRouter Config
-OPENROUTER_API_KEY = os.environ.get("OpenSpurceAPI")
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-# Leer modelo desde archivo model.txt
-MODEL_FILE = BASE_DIR / "model.txt"
-if MODEL_FILE.exists():
-    GEN_MODEL = MODEL_FILE.read_text(encoding="utf-8").strip()
-else:
-    GEN_MODEL = "mistralai/devstral-2512:free"  # fallback por defecto
-
-TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.0"))
-MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "3000"))
+# Modelo Gemini para generar la respuesta (NO embeddings)
+GEN_MODEL = os.environ.get("GEMINI_GEN_MODEL", "models/gemini-2.5-flash")
 # =========================================
 
 
@@ -104,41 +94,17 @@ def search(index: faiss.Index, meta: List[Dict[str, Any]], embedder: TextEmbeddi
     return hits
 
 
-def ask_openrouter(system: str, prompt: str) -> str:
-    """
-    Función de conexión a OpenRouter.
-    Devuelve la respuesta del modelo como string.
-    """
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("Falta variable de entorno OpenSpurceAPI")
-    
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "RAG Chatbot API",
-    }
-    
-    payload = {
-        "model": GEN_MODEL,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": TEMPERATURE,
-        "max_tokens": MAX_TOKENS
-    }
-    
-    r = requests.post(OPENROUTER_API_URL, headers=headers, json=payload, timeout=120)
-    r.raise_for_status()
-    
-    raw = r.json()
-    return raw["choices"][0]["message"]["content"]
+def get_gemini_client() -> genai.Client:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("Falta variable de entorno GEMINI_API_KEY")
+    return genai.Client(api_key=api_key)
 
 
 # ======= Load global resources =======
 index, meta = load_store()
 embedder = init_embedder()
+client = get_gemini_client()
 
 
 @app.get("/health")
@@ -170,9 +136,10 @@ def chat(req: ChatRequest):
 
     contexto_txt = "\n\n".join(contexto)
 
-    system = "Sos un asistente técnico especializado en procedimientos metrológicos. Respondé en español."
-    
     prompt = f"""
+Sos un asistente técnico especializado en procedimientos metrológicos.
+Respondé en español.
+
 REGLAS:
 - Usá SOLO el CONTEXTO.
 - Si falta info, decí: "No está documentado en el corpus."
@@ -186,6 +153,9 @@ PREGUNTA:
 {req.question}
 """.strip()
 
-    answer = ask_openrouter(system, prompt)
+    resp = client.models.generate_content(
+        model=GEN_MODEL,
+        contents=prompt
+    )
 
-    return {"answer": answer, "citations": citations}
+    return {"answer": resp.text, "citations": citations}
