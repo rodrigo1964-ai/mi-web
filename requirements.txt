@@ -3,6 +3,7 @@ uvicorn[standard]
 numpy
 faiss-cpu
 pypdf
-sentence-transformers
+fastembed
 google-genai
 python-dotenv
+httpx
