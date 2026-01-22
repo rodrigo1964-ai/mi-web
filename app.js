@@ -3,9 +3,9 @@ const chatForm = document.getElementById("chatForm");
 const questionInput = document.getElementById("question");
 const sendBtn = document.getElementById("sendBtn");
 
-// Backend local
-// const API_URL = "http://localhost:8001/chat";
+// Backend (Render)
 const API_URL = "https://mi-web-f295.onrender.com/chat";
+
 
 
 function addMessage(text, who="bot"){
