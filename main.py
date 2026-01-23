@@ -1,112 +1,155 @@
 import os
 import json
 import time
-from typing import List, Dict, Any
+from pathlib import Path
+from typing import Any, Dict, List
 
-from fastapi import FastAPI, HTTPException
+import numpy as np
+import faiss
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# ==========================================================
+# ===============================
 # Config
-# ==========================================================
-STORE_DIR = os.environ.get("STORE_DIR", "/opt/render/project/src/rag_store")
-META_PATH = os.path.join(STORE_DIR, "meta.json")
-INDEX_PATH = os.path.join(STORE_DIR, "index.npy")  # si usás numpy index
-EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
-GEN_MODEL = os.environ.get("GEN_MODEL", "mistralai/devstral-2512:free")
+# ===============================
 
-TOP_K = int(os.environ.get("TOP_K", "5"))
+BASE_DIR = Path(__file__).resolve().parent
+STORE_DIR = BASE_DIR / "rag_store"
 
-# ==========================================================
+FAISS_PATH = STORE_DIR / "faiss.index"
+META_PATH = STORE_DIR / "chunks_meta.json"   # ✅ el nombre correcto
+
+EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
+GEN_MODEL = os.getenv("GEN_MODEL", "mistralai/devstral-2512:free")
+
+# ===============================
 # FastAPI
-# ==========================================================
-app = FastAPI(title="RAG Chatbot API")
+# ===============================
 
-# ==========================================================
-# ✅ CORS CORRECTO PARA GITHUB PAGES
-# ==========================================================
-ALLOWED_ORIGINS = [
-    "https://rodrigo1964-ai.github.io",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+app = FastAPI(title="mi-web RAG API", version="1.0")
 
+# ✅ CORS para GitHub Pages
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,      # ✅ IMPORTANTE
+    allow_origins=["*"],  # después lo cerramos a tu dominio si querés
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ==========================================================
-# Models
-# ==========================================================
+# ===============================
+# Modelos
+# ===============================
+
 class ChatRequest(BaseModel):
     question: str
-    k: int = TOP_K
+    k: int = 5
 
 class ChatResponse(BaseModel):
     answer: str
-    citations: List[Dict[str, Any]]
+    hits: List[Dict[str, Any]]
 
-# ==========================================================
-# Utils
-# ==========================================================
-def store_status():
-    meta_exists = os.path.exists(META_PATH)
-    index_exists = os.path.exists(INDEX_PATH)
-    meta_items = 0
+# ===============================
+# Carga del store
+# ===============================
 
-    if meta_exists:
-        try:
-            with open(META_PATH, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-            meta_items = len(meta) if isinstance(meta, list) else 0
-        except:
-            meta_items = 0
+def load_store():
+    if not STORE_DIR.exists():
+        raise RuntimeError(f"rag_store NO existe: {STORE_DIR}")
 
-    return {
-        "estado": "correcto",
-        "indice_dim": 384,
-        "meta_items": meta_items,
-        "modelo_incrustado": EMBED_MODEL,
-        "modelo_gen": GEN_MODEL,
-        "directorio_tienda": STORE_DIR,
-        "indice_tiene": index_exists,
-        "meta_tiene": meta_exists,
-    }
+    if not FAISS_PATH.exists():
+        raise RuntimeError(f"Falta faiss.index: {FAISS_PATH}")
 
-def require_store_files():
-    if not os.path.exists(META_PATH):
-        raise HTTPException(status_code=500, detail="meta.json no existe en rag_store")
-    if not os.path.exists(INDEX_PATH):
-        raise HTTPException(status_code=500, detail="index.npy no existe en rag_store")
+    if not META_PATH.exists():
+        raise RuntimeError(f"Falta chunks_meta.json: {META_PATH}")
 
-# ==========================================================
-# Routes
-# ==========================================================
+    meta = json.loads(META_PATH.read_text(encoding="utf-8"))
+    index = faiss.read_index(str(FAISS_PATH))
+    return index, meta
+
+# ===============================
+# Embeddings dummy (demo)
+# ===============================
+# ⚠️ Esto está para que no reviente.
+# Luego se reemplaza por embeddings reales.
+# ===============================
+
+def embed_text(text: str, dim: int) -> np.ndarray:
+    v = np.zeros((dim,), dtype="float32")
+    h = abs(hash(text)) % dim
+    v[h] = 1.0
+    return v
+
+def search(index, meta: List[Dict[str, Any]], question: str, k: int):
+    dim = index.d
+    qv = embed_text(question, dim).reshape(1, -1)
+
+    D, I = index.search(qv, k)
+
+    hits = []
+    for j in range(len(I[0])):
+        idx = int(I[0][j])
+        if 0 <= idx < len(meta):
+            hits.append({"score": float(D[0][j]), **meta[idx]})
+    return hits
+
+# ===============================
+# Endpoints
+# ===============================
+
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "mi-web rag"}
+    return {"status": "ok", "message": "RAG API en funcionamiento"}
 
 @app.get("/health")
 def health():
-    return store_status()
+    info = {
+        "status": "ok",
+        "store_dir": str(STORE_DIR),
+        "faiss_existe": FAISS_PATH.exists(),
+        "chunks_meta_existe": META_PATH.exists(),
+        "embed_model": EMBED_MODEL,
+        "gen_model": GEN_MODEL,
+    }
+
+    try:
+        if FAISS_PATH.exists():
+            index = faiss.read_index(str(FAISS_PATH))
+            info["index_dim"] = int(index.d)
+        else:
+            info["index_dim"] = None
+    except Exception as e:
+        info["index_dim_error"] = str(e)
+
+    try:
+        if META_PATH.exists():
+            meta = json.loads(META_PATH.read_text(encoding="utf-8"))
+            info["meta_items"] = len(meta)
+        else:
+            info["meta_items"] = 0
+    except Exception as e:
+        info["meta_items_error"] = str(e)
+
+    return info
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    # si querés permitir funcionar aunque no estén los archivos, comentá esto
-    require_store_files()
+    t0 = time.time()
 
-    question = req.question.strip()
-    if not question:
-        raise HTTPException(status_code=400, detail="Pregunta vacía")
+    index, meta = load_store()
+    hits = search(index, meta, req.question, req.k)
 
-    # ⚠️ ACA va tu lógica real de RAG
-    # Por ahora devolvemos demo
-    answer = f"Recibí tu pregunta: {question}\n(backend funcionando OK)"
-    citations = []
+    answer = (
+        f"Backend OK.\n"
+        f"PDFs indexados: {len(meta)}\n"
+        f"Modelo: {GEN_MODEL}\n"
+        f"Pregunta: {req.question}\n\n"
+        f"(Aquí entra la respuesta real RAG.)"
+    )
 
-    return {"answer": answer, "citations": citations}
+    dt = round(time.time() - t0, 3)
+    answer += f"\n\n⏱️ Tiempo: {dt}s"
+
+    return {"answer": answer, "hits": hits}
