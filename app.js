@@ -1,67 +1,68 @@
-const chat = document.getElementById("chat");
-const chatForm = document.getElementById("chatForm");
-const questionInput = document.getElementById("question");
-const sendBtn = document.getElementById("sendBtn");
+// ===============================
+// Config backend (Render)
+// ===============================
 
-// Backend (Render)
+// Backend REAL (Render)
 const API_URL = "https://mi-web-f295.onrender.com/chat";
 
+// (Opcional) backend local para pruebas
+// const API_URL = "http://localhost:8001/chat";
 
+const chat = document.getElementById("chat");
+const form = document.getElementById("chatForm");
+const input = document.getElementById("question");
+const sendBtn = document.getElementById("sendBtn");
 
-function addMessage(text, who="bot"){
+function addMsg(text, who = "bot") {
   const div = document.createElement("div");
-  div.className = `msg ${who}`;
+  div.className = "msg " + who;
   div.textContent = text;
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function askBackend(question){
+async function askBackend(question) {
+  // ✅ CORRECTO: guardar la respuesta en r
   const r = await fetch(API_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ question })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
   });
 
-  if(!r.ok){
+  if (!r.ok) {
     const t = await r.text();
     throw new Error(`Backend error ${r.status}: ${t}`);
   }
-  return r.json();
+
+  // ✅ CORRECTO
+  return await r.json();
 }
 
-chatForm.addEventListener("submit", async (e) => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const q = questionInput.value.trim();
-  if(!q) return;
+  const question = input.value.trim();
+  if (!question) return;
 
-  questionInput.value = "";
-  questionInput.focus();
-
-  addMessage(q, "user");
+  input.value = "";
   sendBtn.disabled = true;
 
-  // placeholder
-  addMessage("Pensando...", "bot");
-  const lastBot = chat.lastChild;
+  addMsg(question, "user");
+  addMsg("Pensando...", "bot");
 
-  try{
-    const data = await askBackend(q);
+  try {
+    const data = await askBackend(question);
 
-    // JSON esperado: { answer: "...", citations: [{pdf,page},...] }
-    let out = data.answer || "(sin respuesta)";
-    if (Array.isArray(data.citations) && data.citations.length > 0){
-      out += "\n\nFuentes:\n" + data.citations
-        .map(c => `- ${c.pdf} p.${c.page}`)
-        .join("\n");
-    }
+    // limpiar "Pensando..."
+    chat.lastChild.remove();
 
-    lastBot.textContent = out;
-  }catch(err){
-    lastBot.textContent = "⚠️ Error: " + err.message;
-  }finally{
+    // según tu API, puede venir como "answer"
+    const answer = data.answer ?? JSON.stringify(data, null, 2);
+    addMsg(answer, "bot");
+  } catch (err) {
+    chat.lastChild.remove();
+    addMsg("⚠️ Error: " + err.message, "bot");
+  } finally {
     sendBtn.disabled = false;
+    input.focus();
   }
 });
-
-addMessage("Hola. Preguntame sobre los PDFs cargados.", "bot");
