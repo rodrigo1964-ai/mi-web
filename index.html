@@ -3,32 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Demo local - Página + Chatbot</title>
+  <title>Mi Página Web + Chatbot RAG</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
   <header class="topbar">
     <h1>Mi Página Web</h1>
-    <p>Demo local: Frontend + Chatbot con contexto en PDFs</p>
+    <p>Frontend en GitHub Pages + Chatbot RAG en Render (PDFs propios)</p>
   </header>
 
   <main class="layout">
     <section class="content">
       <h2>Contenido del sitio</h2>
       <p>
-        Esta página se sirve desde un servidor local. El chatbot consulta un backend local (API),
-        que usa RAG sobre PDFs propios.
+        Esta página está publicada en GitHub Pages. El chatbot consulta un backend público (API)
+        desplegado en Render, que usa RAG sobre PDFs indexados.
       </p>
 
-      <h3>Carpeta de PDFs</h3>
-      <p>Colocá tus documentos en:</p>
-      <code>C:\mi_html\mis_pdf\</code>
+      <h3>Acerca del conocimiento</h3>
+      <p>
+        El chatbot responde consultando información proveniente de documentos PDF previamente
+        procesados e indexados. Las respuestas incluyen citas con documento y página.
+      </p>
 
       <h3>Estado</h3>
       <ul>
-        <li>Frontend: ✅ listo</li>
-        <li>Backend Chatbot: debe correr en <code>http://localhost:8001/chat</code></li>
+        <li>Frontend (GitHub Pages): ✅ listo</li>
+        <li>Backend Chatbot (Render): ✅ listo</li>
       </ul>
     </section>
 
@@ -46,7 +48,7 @@
       </form>
 
       <div class="chat-footnote">
-        Backend esperado: <code>http://localhost:8001/chat</code>
+        Backend: <code>https://mi-web-f295.onrender.com/chat</code>
       </div>
     </aside>
   </main>
