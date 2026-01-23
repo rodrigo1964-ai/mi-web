@@ -21,21 +21,55 @@ function addMsg(text, who = "bot") {
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function askBackend(question) {
-  // ✅ CORRECTO: guardar la respuesta en r
-  const r = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
-  });
+// ---- Util: timeout para fetch ----
+function fetchWithTimeout(url, options = {}, timeoutMs = 65000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`Backend error ${r.status}: ${t}`);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+// ---- Retry con backoff (Render free suele dormir) ----
+async function askBackend(question, retries = 2) {
+  const payload = { question, k: 4 };
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const r = await fetchWithTimeout(
+        API_URL,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        65000 // Render free puede tardar bastante
+      );
+
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`Backend HTTP ${r.status}: ${t}`);
+      }
+
+      return await r.json();
+
+    } catch (err) {
+      // abort por timeout o red / CORS
+      const msg = err?.name === "AbortError"
+        ? "Timeout esperando respuesta del backend (Render puede estar despertando)."
+        : err.message;
+
+      // si hay reintentos, esperamos y repetimos
+      if (attempt < retries) {
+        console.warn(`Intento ${attempt + 1} falló: ${msg}. Reintentando...`);
+        await new Promise(res => setTimeout(res, 2500 * (attempt + 1)));
+        continue;
+      }
+
+      // sin más reintentos -> error final
+      throw new Error(msg);
+    }
   }
-
-  // ✅ CORRECTO
-  return await r.json();
 }
 
 form.addEventListener("submit", async (e) => {
@@ -47,20 +81,34 @@ form.addEventListener("submit", async (e) => {
   sendBtn.disabled = true;
 
   addMsg(question, "user");
-  addMsg("Pensando...", "bot");
+  addMsg("Pensando... (si Render está dormido puede tardar ~50s)", "bot");
 
   try {
-    const data = await askBackend(question);
+    const data = await askBackend(question, 2);
 
     // limpiar "Pensando..."
     chat.lastChild.remove();
 
-    // según tu API, puede venir como "answer"
     const answer = data.answer ?? JSON.stringify(data, null, 2);
     addMsg(answer, "bot");
+
+    // Si tu backend devuelve citations, las mostramos
+    if (data.citations && Array.isArray(data.citations) && data.citations.length) {
+      const citeText = data.citations
+        .map(c => `• ${c.document ?? "doc"} pág ${c.page ?? "?"}`)
+        .join("\n");
+      addMsg("Citas:\n" + citeText, "bot");
+    }
+
   } catch (err) {
     chat.lastChild.remove();
     addMsg("⚠️ Error: " + err.message, "bot");
+
+    addMsg(
+      "Tip: si esto pasa seguido, abrí primero /health para despertar Render: " +
+      "https://mi-web-f295.onrender.com/health",
+      "bot"
+    );
   } finally {
     sendBtn.disabled = false;
     input.focus();
