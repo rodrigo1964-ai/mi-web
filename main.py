@@ -28,6 +28,47 @@ GEN_MODEL = os.getenv("GEN_MODEL", "mistralai/devstral-2512:free")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+# --- System prompt configurable (Secret File / env var / default) ---
+
+SYSTEM_PROMPT_DEFAULT = (
+    "Sos un asistente técnico. Respondé en español. "
+    "Usá ÚNICAMENTE el CONTEXTO provisto. "
+    "Si no hay información suficiente, decí: "
+    "'No lo encuentro en los PDFs indexados.' "
+    "Al final agregá una sección 'Citas:' con PDF y página."
+)
+
+SYSTEM_PROMPT_FILE = Path("/etc/secrets/system_prompt.txt")
+
+
+def load_system_prompt() -> str:
+    """
+    Intenta cargar el system prompt en este orden:
+    1) Secret file /etc/secrets/system_prompt.txt
+    2) Variable de entorno SYSTEM_PROMPT
+    3) Texto por defecto embebido en el código
+    """
+    # 1) Secret File
+    try:
+        if SYSTEM_PROMPT_FILE.exists():
+            txt = SYSTEM_PROMPT_FILE.read_text(encoding="utf-8").strip()
+            if txt:
+                return txt
+    except Exception:
+        # Si hay cualquier problema con el archivo, seguimos con los demás métodos
+        pass
+
+    # 2) Variable de entorno opcional
+    env_prompt = os.getenv("SYSTEM_PROMPT")
+    if env_prompt:
+        return env_prompt
+
+    # 3) Fallback: default hardcodeado
+    return SYSTEM_PROMPT_DEFAULT
+
+
+SYSTEM_PROMPT = load_system_prompt()
+
 # ===============================
 # FastAPI
 # ===============================
@@ -36,7 +77,7 @@ app = FastAPI(title="mi-web RAG API", version="2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # luego cerramos a tu dominio
+    allow_origins=["*"],  # luego podés restringir a tu dominio
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +91,7 @@ class ChatRequest(BaseModel):
     question: str
     k: int = 5
 
+
 class ChatResponse(BaseModel):
     answer: str
     hits: List[Dict[str, Any]]
@@ -58,6 +100,7 @@ class ChatResponse(BaseModel):
 # ===============================
 # Carga del store
 # ===============================
+
 
 def load_store():
     if not STORE_DIR.exists():
@@ -75,11 +118,13 @@ def load_store():
 # Embeddings dummy (demo)
 # ===============================
 
+
 def embed_text(text: str, dim: int) -> np.ndarray:
     v = np.zeros((dim,), dtype="float32")
     h = abs(hash(text)) % dim
     v[h] = 1.0
     return v
+
 
 def search(index, meta: List[Dict[str, Any]], question: str, k: int):
     dim = index.d
@@ -98,25 +143,22 @@ def search(index, meta: List[Dict[str, Any]], question: str, k: int):
 # LLM (OpenRouter)
 # ===============================
 
+
 def call_openrouter(question: str, context: str) -> str:
     if not OPENROUTER_API_KEY:
         return "⚠️ Falta configurar OPENROUTER_API_KEY en Render."
 
-    system = (
-        "Sos un asistente técnico. Respondé en español. "
-        "Usá ÚNICAMENTE el CONTEXTO provisto. "
-        "Si no hay información suficiente, decí: 'No lo encuentro en los PDFs indexados.' "
-        "Al final agregá una sección 'Citas:' con PDF y página."
-    )
-
     payload = {
         "model": GEN_MODEL,
         "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": f"CONTEXTO:\n{context}\n\nPREGUNTA:\n{question}"}
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": f"CONTEXTO:\n{context}\n\nPREGUNTA:\n{question}",
+            },
         ],
         "temperature": 0.2,
-        "max_tokens": 600
+        "max_tokens": 600,
     }
 
     r = requests.post(
@@ -126,7 +168,7 @@ def call_openrouter(question: str, context: str) -> str:
             "Content-Type": "application/json",
         },
         json=payload,
-        timeout=120
+        timeout=120,
     )
     r.raise_for_status()
     data = r.json()
@@ -136,9 +178,11 @@ def call_openrouter(question: str, context: str) -> str:
 # Endpoints
 # ===============================
 
+
 @app.get("/")
 def root():
     return {"status": "ok", "message": "RAG API en funcionamiento"}
+
 
 @app.get("/health")
 def health():
@@ -152,6 +196,7 @@ def health():
         "openrouter_key": bool(OPENROUTER_API_KEY),
     }
     return info
+
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
