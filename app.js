@@ -1,15 +1,4 @@
 // ===============================
-// Config backend (Render)
-// ===============================
-
-// Backend REAL (Render)
-// const API_URL = "https://mi-web-f295.onrender.com/chat";
-// (Opcional) backend local para pruebas
-// const API_URL = "http://localhost:8001/chat";
-
-
-
-// ===============================
 // Config backend (auto local / Render)
 // ===============================
 
@@ -27,7 +16,15 @@ const BACKEND_BASE =
 const API_URL = BACKEND_BASE + "/chat";
 const HEALTH_URL = BACKEND_BASE + "/health";
 
-
+// ===============================
+// Mostrar backend activo en index.html
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  const el = document.getElementById("backend-url");
+  if (el) {
+    el.textContent = API_URL;
+  }
+});
 
 //==============================================================
 
@@ -66,7 +63,7 @@ async function askBackend(question, retries = 2) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         },
-        65000 // Render free puede tardar bastante
+        65000
       );
 
       if (!r.ok) {
@@ -77,23 +74,23 @@ async function askBackend(question, retries = 2) {
       return await r.json();
 
     } catch (err) {
-      // abort por timeout o red / CORS
-      const msg = err?.name === "AbortError"
-        ? "Timeout esperando respuesta del backend (Render puede estar despertando)."
-        : err.message;
+      const msg =
+        err?.name === "AbortError"
+          ? "Timeout esperando respuesta del backend (Render puede estar despertando)."
+          : err.message;
 
-      // si hay reintentos, esperamos y repetimos
       if (attempt < retries) {
         console.warn(`Intento ${attempt + 1} falló: ${msg}. Reintentando...`);
         await new Promise(res => setTimeout(res, 2500 * (attempt + 1)));
         continue;
       }
 
-      // sin más reintentos -> error final
       throw new Error(msg);
     }
   }
 }
+
+//==============================================================
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -115,7 +112,6 @@ form.addEventListener("submit", async (e) => {
     const answer = data.answer ?? JSON.stringify(data, null, 2);
     addMsg(answer, "bot");
 
-    // Si tu backend devuelve citations, las mostramos
     if (data.citations && Array.isArray(data.citations) && data.citations.length) {
       const citeText = data.citations
         .map(c => `• ${c.document ?? "doc"} pág ${c.page ?? "?"}`)
@@ -129,7 +125,7 @@ form.addEventListener("submit", async (e) => {
 
     addMsg(
       "Tip: si esto pasa seguido, abrí primero /health para despertar Render: " +
-      "https://mi-web-f295.onrender.com/health",
+      HEALTH_URL,
       "bot"
     );
   } finally {

@@ -1,8 +1,3 @@
-## 2️⃣ index.html actualizado
-
-La única “desactualización” que tenías es que el HTML menciona fijo el endpoint de Render en la parte de “Backend”, mientras que ahora el backend se elige automáticamente desde `app.js`. Acá va una versión ajustada:
-
-```html
 <!doctype html>
 <html lang="es">
 <head>
@@ -23,8 +18,8 @@ La única “desactualización” que tenías es que el HTML menciona fijo el en
       <h2>Contenido del sitio</h2>
       <p>
         Esta página puede ejecutarse en modo local o publicada en GitHub Pages.
-        El chatbot consulta un backend (API) que puede estar corriendo en tu máquina
-        o desplegado en Render.
+        El chatbot consulta un backend (API) que se selecciona automáticamente
+        según el entorno.
       </p>
 
       <h3>Acerca del conocimiento</h3>
@@ -36,8 +31,8 @@ La única “desactualización” que tenías es que el HTML menciona fijo el en
 
       <h3>Estado</h3>
       <ul>
-        <li>Frontend (GitHub Pages o local): ✅ listo</li>
-        <li>Backend Chatbot (Render o local): ✅ listo</li>
+        <li>Frontend: ✅ listo</li>
+        <li>Backend Chatbot: ✅ listo</li>
       </ul>
     </section>
 
@@ -50,16 +45,19 @@ La única “desactualización” que tenías es que el HTML menciona fijo el en
       <div id="chat" class="chat-messages"></div>
 
       <form id="chatForm" class="chat-form">
-        <input id="question" type="text" placeholder="Escribí tu pregunta..." autocomplete="off" />
+        <input
+          id="question"
+          type="text"
+          placeholder="Escribí tu pregunta..."
+          autocomplete="off"
+        />
         <button id="sendBtn" type="submit">Enviar</button>
       </form>
 
-      <div class="chat-footnote">
-        El backend se selecciona automáticamente:
-        <ul>
-          <li><code>localhost</code> → usa el backend local (Uvicorn en 127.0.0.1:8001).</li>
-          <li>GitHub Pages u otro dominio → usa el backend en Render.</li>
-        </ul>
+      <!-- 👇 ESTO ES NUEVO -->
+      <div class="chat-backend">
+        Backend activo:
+        <code id="backend-url">detectando…</code>
       </div>
     </aside>
   </main>
