@@ -10,6 +10,7 @@ venv/
 
 rag_store/
 api/rag_store/
+back/
 
 *.log
 .ipynb_checkpoints/
