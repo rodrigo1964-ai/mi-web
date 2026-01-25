@@ -1,3 +1,8 @@
+## 2️⃣ index.html actualizado
+
+La única “desactualización” que tenías es que el HTML menciona fijo el endpoint de Render en la parte de “Backend”, mientras que ahora el backend se elige automáticamente desde `app.js`. Acá va una versión ajustada:
+
+```html
 <!doctype html>
 <html lang="es">
 <head>
@@ -10,27 +15,29 @@
 <body>
   <header class="topbar">
     <h1>Mi Página Web</h1>
-    <p>Frontend en GitHub Pages + Chatbot RAG en Render (PDFs propios)</p>
+    <p>Frontend en GitHub Pages + Chatbot RAG (PDFs propios)</p>
   </header>
 
   <main class="layout">
     <section class="content">
       <h2>Contenido del sitio</h2>
       <p>
-        Esta página está publicada en GitHub Pages. El chatbot consulta un backend público (API)
-        desplegado en Render, que usa RAG sobre PDFs indexados.
+        Esta página puede ejecutarse en modo local o publicada en GitHub Pages.
+        El chatbot consulta un backend (API) que puede estar corriendo en tu máquina
+        o desplegado en Render.
       </p>
 
       <h3>Acerca del conocimiento</h3>
       <p>
-        El chatbot responde consultando información proveniente de documentos PDF previamente
-        procesados e indexados. Las respuestas incluyen citas con documento y página.
+        El chatbot responde consultando información proveniente de documentos PDF
+        previamente procesados e indexados. Las respuestas incluyen citas con
+        documento y página.
       </p>
 
       <h3>Estado</h3>
       <ul>
-        <li>Frontend (GitHub Pages): ✅ listo</li>
-        <li>Backend Chatbot (Render): ✅ listo</li>
+        <li>Frontend (GitHub Pages o local): ✅ listo</li>
+        <li>Backend Chatbot (Render o local): ✅ listo</li>
       </ul>
     </section>
 
@@ -48,7 +55,11 @@
       </form>
 
       <div class="chat-footnote">
-        Backend: <code>https://mi-web-f295.onrender.com/chat</code>
+        El backend se selecciona automáticamente:
+        <ul>
+          <li><code>localhost</code> → usa el backend local (Uvicorn en 127.0.0.1:8001).</li>
+          <li>GitHub Pages u otro dominio → usa el backend en Render.</li>
+        </ul>
       </div>
     </aside>
   </main>

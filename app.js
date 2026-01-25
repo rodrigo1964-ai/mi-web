@@ -3,10 +3,33 @@
 // ===============================
 
 // Backend REAL (Render)
-const API_URL = "https://mi-web-f295.onrender.com/chat";
-
+// const API_URL = "https://mi-web-f295.onrender.com/chat";
 // (Opcional) backend local para pruebas
 // const API_URL = "http://localhost:8001/chat";
+
+
+
+// ===============================
+// Config backend (auto local / Render)
+// ===============================
+
+const LOCAL_BACKEND = "http://127.0.0.1:8001";
+const RENDER_BACKEND = "https://mi-web-f295.onrender.com";
+
+// Si estoy en localhost → uso backend local.
+// Si estoy en cualquier otro host → uso Render.
+const BACKEND_BASE =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? LOCAL_BACKEND
+    : RENDER_BACKEND;
+
+const API_URL = BACKEND_BASE + "/chat";
+const HEALTH_URL = BACKEND_BASE + "/health";
+
+
+
+//==============================================================
 
 const chat = document.getElementById("chat");
 const form = document.getElementById("chatForm");
